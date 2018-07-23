@@ -1,0 +1,76 @@
+yum groupinstall "Development Tools" -y
+yum install apr-util.x86_64 apr-util-devel.x86_64 pcre-devel.x86_64 openssl-devel.x86_64 perl-ExtUtils-Embed
+
+mkdir -p /server/tmp
+cd /server/tmp && wget https://nxlog.co/system/files/products/files/348/nxlog-ce-2.10.2102.tar.gz
+tar xvzf nxlog-ce-2.10.2102.tar.gz
+
+cd nxlog-ce-2.10.5
+./configure --prefix=/server/nxlog
+make && make install
+
+mkdir -p /server/nxlog/etc/nxlog
+mkdir -p /server/nxlog/var/run/nxlog
+mkdir -p /server/nxlog/
+mkdir -p /server/nxlog/init.d/
+mkdir -p /server/nxlog/log
+cp /server/tmp/nxlog-ce-2.10.5/packaging/redhat/nxlog.conf /server/nxlog/etc/nxlog
+cp /server/tmp/nxlog-ce-2.10.5/packaging/redhat/init /server/nxlog/init.d/nxlog && chmod +x nxlog
+/server/init.d/nxlog start
+############Change file nxlog.conf###########
+cat /server/nxlog/etc/nxlog/nxlog.conf
+
+## This is a sample configuration file. See the nxlog reference manual about the
+## configuration options. It should be installed locally under
+## /usr/share/doc/nxlog-ce/ and is also available online at
+## http://nxlog.org/docs
+
+########################################
+# Global directives                    #
+########################################
+User root
+Group root
+
+LogFile /server/nxlog/log/nxlog.log
+LogLevel INFO
+
+########################################
+# Modules                              #
+########################################
+<Extension _syslog>
+    Module      xm_syslog
+</Extension>
+
+<Input in1>
+    Module	im_udp
+    Port	514
+    Exec	parse_syslog_bsd();
+</Input>
+
+<Input in2>
+    Module	im_tcp
+    Port	514
+</Input>
+
+<Output fileout1>
+    Module	om_file
+    File	"/var/log/logmsg.txt"
+    Exec	if $Message =~ /error/ $SeverityValue = syslog_severity_value("error");
+    Exec	to_syslog_bsd();
+</Output>
+
+<Output fileout2>
+    Module	om_file
+    File	"/var/log/logmsg2.txt"
+</Output>
+
+########################################
+# Routes                               #
+########################################
+<Route 1>
+    Path	in1 => fileout1
+</Route>
+
+<Route tcproute>
+    Path	in2 => fileout2
+</Route>
